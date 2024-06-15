@@ -237,19 +237,11 @@ int main(int argc, char* argv[])
     {
         while (true)
         {
-            std::cout << "Enter file path: ";
+            std::cout << "Enter the code: ";
+            std::getline(std::cin, rom);
 
-            std::string filePath;
-            std::getline(std::cin, filePath);
-
-            if (!loadROM(filePath))
-                std::cout << "\nError loading the file!";
-            else
-            {
-                clearConsole();
-                compileAndRun();
-            }
-
+            clearConsole();
+            compileAndRun();
             reset();
         }
     }
