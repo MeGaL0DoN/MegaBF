@@ -58,14 +58,14 @@ struct BrainCode : Xbyak::CodeGenerator
             case '>':
             {
                 uint32_t adder = repeatingChars(i, '>');
-                add(r12, adder);
+                add(r12w, adder);
                 i += adder - 1;
                 break;
             }
             case '<':
             {
                 uint32_t subtract = repeatingChars(i, '<');
-                sub(r12, subtract);
+                sub(r12w, subtract);
                 i += subtract - 1;
                 break;
             }
@@ -101,7 +101,7 @@ struct BrainCode : Xbyak::CodeGenerator
                 mov(rax, (size_t)getchar);
                 call(rax);
 
-                mov(dataPointer, eax);
+                mov(dataPointer, al);
                 add(rsp, 8);
 
                 break;
@@ -216,6 +216,7 @@ inline void reset()
 {
     getchar();
     clearConsole();
+    std::cin.clear();
 
     rom.clear();
     std::memset(ram.data(), 0, sizeof(ram));
@@ -238,7 +239,11 @@ int main(int argc, char* argv[])
         while (true)
         {
             std::cout << "Enter the code: ";
-            std::getline(std::cin, rom);
+
+            std::string line;
+
+            while (std::getline(std::cin, line))
+                rom += line;
 
             clearConsole();
             compileAndRun();
