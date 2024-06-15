@@ -1,6 +1,6 @@
 # MegaBF
 
-Brainfuck JIT compiler to x64 written in C++
+Brainfuck AOT/JIT compiler to x64 written in C++
 
 ## Build
 
