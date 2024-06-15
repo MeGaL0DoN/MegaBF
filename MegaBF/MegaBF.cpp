@@ -86,23 +86,23 @@ struct BrainCode : Xbyak::CodeGenerator
             case '.':
             {
                 mov(rcx, dataPointer);
-                sub(rsp, 8);
+                sub(rsp, 16);
 
                 mov(rax, (size_t)putchar);
                 call(rax);
-                add(rsp, 8);
+                add(rsp, 16);
 
                 break;
             }
             case ',':
             {
-                sub(rsp, 8);
+                sub(rsp, 16);
 
                 mov(rax, (size_t)getchar);
                 call(rax);
 
                 mov(dataPointer, al);
-                add(rsp, 8);
+                add(rsp, 16);
 
                 break;
             }
