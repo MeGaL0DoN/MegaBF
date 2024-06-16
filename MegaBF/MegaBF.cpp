@@ -39,17 +39,30 @@ uint32_t repeatingChars(uint32_t ind, char val)
 
 struct BrainCode : Xbyak::CodeGenerator
 {
+public:
     BrainCode() : Xbyak::CodeGenerator(Xbyak::DEFAULT_MAX_CODE_SIZE, Xbyak::AutoGrow)
     { }
 
-#define dataPointer byte[r12 + r13]
+    // r12 is pointer to the RAM array.
+    // r13 is brainfuck data pointer.
+    
+#define pointedData byte[r12 + r13]
 
     bool compile()
     {
+        errorLocation currentLoc{};
+        std::stack<errorLocation> openedBracketLocs;
+
+        auto showErrorMsg = [](char bracket, errorLocation loc) 
+        {
+             std::cout << "Compilation error! Unmatched '" << bracket << "' at " << std::to_string(loc.line) << ":" << std::to_string(loc.column);
+        };
+
         std::stack<Xbyak::Label> loopStack;
 
-        xor_(r12, r12);
-        mov(r13, (size_t)ram.data());
+        push(rsp);
+        mov(r12, (size_t)ram.data());
+        xor_(r13, r13);
 
         for (size_t i = 0; i < rom.size(); i++)
         {
@@ -58,51 +71,51 @@ struct BrainCode : Xbyak::CodeGenerator
             case '>':
             {
                 uint32_t adder = repeatingChars(i, '>');
-                add(r12w, adder);
+                add(r13w, adder);
                 i += adder - 1;
                 break;
             }
             case '<':
             {
                 uint32_t subtract = repeatingChars(i, '<');
-                sub(r12w, subtract);
+                sub(r13w, subtract);
                 i += subtract - 1;
                 break;
             }
             case '+':
             {
                 uint32_t adder = repeatingChars(i, '+');
-                add(dataPointer, adder);
+                add(pointedData, adder);
                 i += adder - 1;
                 break;
             }
             case '-':
             {
                 uint32_t subtract = repeatingChars(i, '-');
-                sub(dataPointer, subtract);
+                sub(pointedData, subtract);
                 i += subtract - 1;
                 break;
             }
             case '.':
             {
-                mov(rcx, dataPointer);
-                sub(rsp, 16);
+                mov(rcx, pointedData);
+                sub(rsp, 32);
 
                 mov(rax, (size_t)putchar);
                 call(rax);
-                add(rsp, 16);
+                add(rsp, 32);
 
                 break;
             }
             case ',':
             {
-                sub(rsp, 16);
+                sub(rsp, 32);
 
                 mov(rax, (size_t)getchar);
                 call(rax);
 
-                mov(dataPointer, al);
-                add(rsp, 16);
+                mov(pointedData, al);
+                add(rsp, 32);
 
                 break;
             }
@@ -111,11 +124,13 @@ struct BrainCode : Xbyak::CodeGenerator
                 Xbyak::Label beginLoop = L();
                 Xbyak::Label endLoop;
 
-                cmp(dataPointer, 0);
+                cmp(pointedData, 0);
                 je(endLoop, Xbyak::CodeGenerator::T_NEAR);
 
-                loopStack.push(beginLoop);;
+                loopStack.push(beginLoop);
                 loopStack.push(endLoop);
+
+                openedBracketLocs.push(currentLoc);
 
                 break;
             }
@@ -123,7 +138,7 @@ struct BrainCode : Xbyak::CodeGenerator
             {
                 if (loopStack.empty())
                 {
-                    std::cout << "Compilation error! Unmatched ']'";
+                    showErrorMsg(']', currentLoc);
                     return false;
                 }
 
@@ -133,26 +148,39 @@ struct BrainCode : Xbyak::CodeGenerator
                 Xbyak::Label beginLoop = loopStack.top();
                 loopStack.pop();
 
-                cmp(dataPointer, 0);
+                cmp(pointedData, 0);
                 jne(beginLoop, Xbyak::CodeGenerator::T_NEAR);
 
                 L(endLoop);
+
+                openedBracketLocs.pop();
                 break;
             }
+            case '\n':
+                currentLoc.line++;
+                currentLoc.column = 0;
             }
+
+            currentLoc.column++;
         }
 
         if (!loopStack.empty())
         {
-            std::cout << "Compilation error! Unmatched '['";
+            showErrorMsg('[', openedBracketLocs.top());
             return false;
         }
 
-        mov(eax, r12);
+        pop(rsp);
         ret();
 
         return true;
     }
+private:
+    struct errorLocation
+    {
+        uint32_t line { 1 };
+        uint32_t column { 1 };
+    };
 };
 
 inline std::string hexStr(const uint8_t* data, int len)
@@ -196,9 +224,14 @@ void compileAndRun()
     dumpCode(code);
 
     auto func = code.getCode<void(*)()>();
+    auto start = std::chrono::high_resolution_clock::now();
+
     func();
 
-    std::cout << "\n----------------\nProgram Executed.";
+    auto end = std::chrono::high_resolution_clock::now(); 
+    double time = std::chrono::duration<double, std::milli>(end - start).count();
+
+    std::cout << "\n----------------\nProgram Executed. Time: " << time << " ms";
 }
 
 void clearConsole()
@@ -218,7 +251,7 @@ inline void reset()
     clearConsole();
     std::cin.clear();
 
-    rom.clear();
+    rom = "";
     std::memset(ram.data(), 0, sizeof(ram));
 }
 
@@ -242,8 +275,11 @@ int main(int argc, char* argv[])
 
             std::string line;
 
-            while (std::getline(std::cin, line))
-                rom += line;
+            while (rom == "" || std::getline(std::cin, line))
+                rom += line +"\n";
+
+            if (rom[0] == '\n')
+                rom.erase(rom.begin());
 
             clearConsole();
             compileAndRun();
