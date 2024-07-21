@@ -18,5 +18,13 @@
     <ClCompile Include="MegaBF.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="x64Emitter.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="BFCompiler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
